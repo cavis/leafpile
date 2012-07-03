@@ -25,6 +25,8 @@
  * groups based on screen spacing, updating with every zoom level.
  * ========================================================== */
 L.MarkerClumper = L.Class.extend({
+    includes: L.Mixin.Events,
+
     options: {
         radius: 60
     },
@@ -67,7 +69,7 @@ L.MarkerClumper = L.Class.extend({
 
     onAdd: function(map) {
         this._map = map;
-        this._map.on('zoomend', this.onZoomEnd, this);
+        this._map.on('zoomend', this._onZoomEnd, this);
         this._iterateMarkers(this._clumpMarker, this);
     },
 
@@ -76,13 +78,26 @@ L.MarkerClumper = L.Class.extend({
         this._map = null;
     },
 
-    onZoomEnd: function(e) {
+    _onZoomEnd: function(e) {
         this.clear();
         this._iterateMarkers(this._clumpMarker, this);
     },
 
-    onClumpClick: function(e, thing) {
-        console.log("ON CLUMP CLICK", e, thing);
+    _onClumpClick: function(e) {
+        this.fire('clumpclick', {
+            clump: e.target,
+            markers: e.markers,
+            zooming: (e.markers.length > 1)
+        });
+
+        // zoom in when multiple are clicked
+        if (e.markers.length > 1) {
+            var all = [];
+            for (var i=0; i<e.markers.length; i++) {
+                all.push(e.markers[i].getLatLng());
+            }
+            this._map.fitBounds(new L.LatLngBounds(all));
+        }
     },
 
     _clumpMarker: function(mark) {
@@ -104,7 +119,7 @@ L.MarkerClumper = L.Class.extend({
             var clump = new L.Clump(mark, {radius: this.options.radius});
             var id = L.Util.stamp(clump);
             this._clumps[id] = clump;
-            this._clumps[id].on('click', this.onClumpClick, this);
+            this._clumps[id].on('click', this._onClumpClick, this);
             this._map.addLayer(clump);
         }
         return this;
@@ -222,7 +237,8 @@ L.Clump = L.Marker.extend({
     },
 
     initialize: function(mark, options) {
-        this._markers = [mark];
+        var id = L.Util.stamp(mark);
+        this._markers = {id: mark};
         this._latlng = mark.getLatLng();
         L.Util.setOptions(this, options);
         this.options.icon = new L.Icon.Clump(1);
@@ -239,11 +255,12 @@ L.Clump = L.Marker.extend({
     },
 
     addMarker: function(mark) {
-        this._markers.push(mark);
-        this.options.icon.update(this._markers.length, this._icon);
+        var id = L.Util.stamp(mark);
+        this._markers[id] = mark;
+        var weight = Object.keys(this._markers).length;
+        this.options.icon.update(weight, this._icon);
 
         // weighted average the point location
-        var weight = this._markers.length;
         var point = this._map.latLngToLayerPoint(mark.getLatLng());
         this._center = new L.Point(
             (this._center.x * (weight-1) + point.x) / weight,
@@ -252,36 +269,30 @@ L.Clump = L.Marker.extend({
         this.setLatLng(this._map.layerPointToLatLng(this._center));
     },
 
-    _setMapPosition: function() {
+    removeMarker: function(mark) {
+        var id = L.Util.stamp(mark);
+        delete this._markers[id];
+        this._resetMapPosition();
+    },
+
+    _resetMapPosition: function() {
         var avg = [0, 0];
-        for (var i=0; i<this._markers.length; i++) {
+        var weight = Object.keys(this._markers).length;
+        for (var i in this._markers) {
+            var mark = this._markers[i];
             var point = this._map.latLngToLayerPoint(mark.getLatLng());
-            avg[0] += point.x;
-            avg[1] += point.y;
+            avg[0] += (point.x / weight);
+            avg[1] += (point.y / weight);
         }
-        this._center = new L.Point(
-            avg[0] / this._markers.length,
-            avg[1] / this._markers.length
-        );
+        this._center = new L.Point(avg[0], avg[1]);
         this.setLatLng(this._map.layerPointToLatLng(this._center));
     },
 
     _onMouseClick: function (e) {
         L.DomEvent.stopPropagation(e);
-
-        // zoom in when multiple are clicked
-        if (this._markers.length > 1) {
-            var all = [];
-            for (var i=0; i<this._markers.length; i++) {
-                all.push(this._markers[i].getLatLng());
-            }
-            this._map.fitBounds(new L.LatLngBounds(all));
-        }
-        this.fire(e.type, {
-            originalEvent: e,
-            markers: this._markers,
-            zooming: (this._markers.length > 1)
-        });
+        var marks = [];
+        for (var i in this._markers) marks.push(this._markers[i]);
+        this.fire('click', {originalEvent: e, markers: marks});
     }
 
 });
