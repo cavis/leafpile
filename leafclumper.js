@@ -48,6 +48,39 @@ L.MarkerClumper = L.Class.extend({
 		return this;
 	},
 
+	removeMarker: function(mark) {
+		var id = L.Util.stamp(mark);
+		delete this._markers[id];
+
+		if (this._map) {
+			this._map.removeLayer(mark);
+		}
+
+		return this;
+	},
+
+	clear: function() {
+		this._iterateClumps(this._map.removeLayer, this._map);
+		this._clumps = {};
+		return this;
+	},
+
+	onAdd: function(map) {
+		this._map = map;
+		this._map.on('zoomend', this.onZoomEnd, this);
+		this._iterateMarkers(this._clumpMarker, this);
+	},
+
+	onRemove: function(map) {
+		this._iterateClumps(map.removeLayer, map);
+		this._map = null;
+	},
+
+	onZoomEnd: function(e) {
+		this.clear();
+		this._iterateMarkers(this._clumpMarker, this);
+	},
+
 	_clumpMarker: function(mark) {
 		var point = this._map.latLngToLayerPoint(mark.getLatLng());
 		for (var i in this._clumps) {
@@ -63,32 +96,6 @@ L.MarkerClumper = L.Class.extend({
 		this._clumps[id] = clump;
 		this._map.addLayer(clump);
 		return this;
-	},
-
-	removeMarker: function(mark) {
-		var id = L.Util.stamp(mark);
-		delete this._markers[id];
-
-		if (this._map) {
-			this._map.removeLayer(mark);
-		}
-
-		return this;
-	},
-
-	clear: function() {
-		this._iterateClumps(map.removeMarker, map);
-		return this;
-	},
-
-	onAdd: function(map) {
-		this._map = map;
-		this._iterateMarkers(this._clumpMarker, this);
-	},
-
-	onRemove: function(map) {
-		this._iterateClumps(map.removeMarker, map);
-		this._map = null;
 	},
 
 	_iterateMarkers: function(method, context) {
@@ -120,7 +127,14 @@ L.Icon.Clump = L.Icon.extend({
 	},
 
 	_sizeOptions: {
-		20: {
+		1: {
+			image: L.Icon.Default.prototype._getIconUrl('icon'),
+			iconSize: L.Icon.Default.prototype.options.iconSize,
+			iconAnchor: L.Icon.Default.prototype.options.iconAnchor,
+			popupAnchor: L.Icon.Default.prototype.options.popupAnchor,
+			shadowSize: null
+		},
+		2: {
 			image: '../lc1.png',
 			iconSize: new L.Point(53, 52),
 			iconAnchor: new L.Point(27, 26),
@@ -134,7 +148,7 @@ L.Icon.Clump = L.Icon.extend({
 			popupAnchor: new L.Point(0, 0),
 			shadowSize: null
 		},
-		1: {
+		20: {
 			image: '../lc1.png',
 			iconSize: new L.Point(53, 52),
 			iconAnchor: new L.Point(27, 26),
@@ -147,15 +161,15 @@ L.Icon.Clump = L.Icon.extend({
 		this._setClumpOptions(size || 1);
 	},
 
-	update: function(size) {
+	update: function(size, div) {
 		this._setClumpOptions(size);
-		this._setIconStyles(this._div, 'icon')
+		this._setIconStyles(div, size)
 	},
 
 	createIcon: function() {
-		this._div = document.createElement('div');
-		this._setIconStyles(this._div, 'icon');
-		return this._div;
+		var div = document.createElement('div');
+		this._setIconStyles(div);
+		return div;
 	},
 
 	createShadow: function() {
@@ -163,23 +177,16 @@ L.Icon.Clump = L.Icon.extend({
 	},
 
 	_setClumpOptions: function(size) {
-		this.options.size = size;
-
-		// start with default marker icon
-		this.options.image = L.Icon.Default.prototype._getIconUrl('icon');
-		L.Util.setOptions(this, L.Icon.Default.prototype.options);
-
-		// look for alt icon
 		for (var i in this._sizeOptions) {
-			if (size >= i) {
-				L.Util.setOptions(this, this._sizeOptions[i]);
+			if (size <= i) {
+				this.options = this._sizeOptions[i];
 				break;
 			}
 		}
 	},
 
-	_setIconStyles: function(div, name) {
-		L.Icon.prototype._setIconStyles.call(this, div, name);
+	_setIconStyles: function(div, size) {
+		L.Icon.prototype._setIconStyles.call(this, div, 'icon');
 		div.style['cursor'] = 'pointer';
 		div.style['background'] = 'url('+this.options.image+') no-repeat 0 0';
 		div.style['text-align'] = 'center';
@@ -187,7 +194,7 @@ L.Icon.Clump = L.Icon.extend({
 		div.style['font-weight'] = 'bold';
 		div.style['color'] = 'white';
 		div.style['line-height'] = this.options.iconSize.y+'px';
-		div.innerHTML = (this.options.size > 1 ) ? this.options.size : '';
+		div.innerHTML = (size > 1 ) ? size : '';
 	}
 });
 
@@ -199,7 +206,6 @@ L.Icon.Clump = L.Icon.extend({
  * ========================================================== */
 L.Clump = L.Marker.extend({
 	options: {
-		icon: new L.Icon.Clump(1),
 		radius: 60
 	},
 
@@ -207,6 +213,7 @@ L.Clump = L.Marker.extend({
 		this._markers = [mark];
 		this._latlng = mark.getLatLng();
 		L.Util.setOptions(this, options);
+		this.options.icon = new L.Icon.Clump(1);
 	},
 
 	onAdd: function(map) {
@@ -220,15 +227,31 @@ L.Clump = L.Marker.extend({
 
 	addMarker: function(mark) {
 		this._markers.push(mark);
-		this.options.icon.update(this._markers.length);
+		this.options.icon.update(this._markers.length, this._icon);
 
-		// average the point location
+		// weighted average the point location
+		var weight = this._markers.length;
 		var point = this._map.latLngToLayerPoint(mark.getLatLng());
 		this._center = new L.Point(
-			(this._center.x + point.x) / 2,
-			(this._center.y + point.y) / 2
+			(this._center.x * (weight-1) + point.x) / weight,
+			(this._center.y * (weight-1) + point.y) / weight
+		);
+		this.setLatLng(this._map.layerPointToLatLng(this._center));
+	},
+
+	_setMapPosition: function() {
+		var avg = [0, 0];
+		for (var i=0; i<this._markers.length; i++) {
+			var point = this._map.latLngToLayerPoint(mark.getLatLng());
+			avg[0] += point.x;
+			avg[1] += point.y;
+		}
+		this._center = new L.Point(
+			avg[0] / this._markers.length,
+			avg[1] / this._markers.length
 		);
 		this.setLatLng(this._map.layerPointToLatLng(this._center));
 	}
+
 });
 
