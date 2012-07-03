@@ -33,14 +33,14 @@
       map.setView(new L.LatLng(40.423, -98.7372), 4);
 
       // clump layer
-      var clumps = new L.MarkerClumper();
+      var clumps = new L.LayerGroup(); //L.MarkerClumper();
       map.addLayer(clumps);
 
       // example data
       for (var i=0; i<EXAMPLELATLNG.length; i++) {
         var loc  = EXAMPLELATLNG[i];
         var mark = new L.Marker(new L.LatLng(loc[0], loc[1]));
-        clumps.addMarker(mark);
+        clumps.addLayer(mark);
       }
     </script>
 
