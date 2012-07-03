@@ -82,19 +82,26 @@ L.MarkerClumper = L.Class.extend({
 	},
 
 	_clumpMarker: function(mark) {
-		var point = this._map.latLngToLayerPoint(mark.getLatLng());
+		var point = this._map.latLngToLayerPoint(mark.getLatLng()),
+		    clump = null, leastDistance = null;
 		for (var i in this._clumps) {
-			if (this._clumps[i].inBounds(point)) {
-				this._clumps[i].addMarker(mark);
-				return this;
+			var dist = this._clumps[i].inBounds(point);
+			if (dist !== false && (!clump || dist < leastDistance)) {
+				clump = this._clumps[i];
+				leastDistance = dist;
 			}
 		}
 
-		// not found - create new clump
-		var clump = new L.Clump(mark, {radius: this.options.radius});
-		var id = L.Util.stamp(clump);
-		this._clumps[id] = clump;
-		this._map.addLayer(clump);
+		// add or create
+		if (clump) {
+			clump.addMarker(mark);
+		}
+		else {
+			var clump = new L.Clump(mark, {radius: this.options.radius});
+			var id = L.Util.stamp(clump);
+			this._clumps[id] = clump;
+			this._map.addLayer(clump);
+		}
 		return this;
 	},
 
@@ -222,7 +229,8 @@ L.Clump = L.Marker.extend({
 	},
 
 	inBounds: function(point) {
-		return this._center.distanceTo(point) < this.options.radius;
+		var dist = this._center.distanceTo(point);
+		return (dist < this.options.radius ? dist : false);
 	},
 
 	addMarker: function(mark) {
@@ -251,6 +259,22 @@ L.Clump = L.Marker.extend({
 			avg[1] / this._markers.length
 		);
 		this.setLatLng(this._map.layerPointToLatLng(this._center));
+	},
+
+	_onMouseClick: function (e) {
+		L.DomEvent.stopPropagation(e);
+		if (this._markers.length > 1) {
+			var all = [];
+			for (var i=0; i<this._markers.length; i++) {
+				all.push(this._markers[i].getLatLng());
+			}
+			this._map.fitBounds(new L.LatLngBounds(all));
+		}
+		else {
+			this.fire(e.type, {
+				originalEvent: e
+			});
+		}
 	}
 
 });
