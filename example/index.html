@@ -2,45 +2,55 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Leaflet Marker Clumper Example</title>
+    <title>Leafpile Marker Clustering Example</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Example of Leaflet Marker Clumper functionality">
+    <meta name="description" content="Demo of Leafpile functionality">
     <meta name="author" content="cavis">
 
     <!-- styles -->
-    <link href="leaflet/dist/leaflet.css" rel="stylesheet">
-
+    <link href="externals/leaflet/leaflet.css" rel="stylesheet">
+    <style type="text/css">
+      #options { margin-bottom: 30px; }
+      #leaflet-map { height: 500px; width: 800px; }
+    </style>
   </head>
 
   <body>
 
+    <!-- options pickers -->
+    <div id="options" class="center">
+      <h1>Leafpile Plugin Demo</h1>
+      <p>Source code and documentation available on <a href="https://github.com/cavis/leafpile">Github</a></p>
+      <hr/>
+    </div>
+
     <!-- mapper container -->
-    <div id="leaflet-map" style="width:800px; height:500px"></div>
+    <div id="leaflet-map"></div>
 
     <!-- javascripts -->
-    <script src="leaflet/dist/leaflet.js"></script>
+    <script src="externals/leaflet/leaflet-src.js"></script>
     <script src="http://maps.stamen.com/js/tile.stamen.js"></script>
-    <script src="../leafclumper.js"></script>
+    <script src="../leafpile.js"></script>
 
     <!-- sample data -->
-    <script src="markers.js"></script>
+    <script src="data.js"></script>
 
-    <!-- initialize slide mapper -->
+    <!-- initialize leafpile -->
     <script type="text/javascript">
       var map = new L.Map('leaflet-map');
       var tiles = new L.StamenTileLayer('toner');
       map.addLayer(tiles);
       map.setView(new L.LatLng(40.423, -98.7372), 4);
 
-      // clump layer
-      var clumps = new L.MarkerClumper();
-      map.addLayer(clumps);
+      // pile layer
+      var pile = new L.Leafpile();
+      map.addLayer(pile);
 
       // example data
-      for (var i=0; i<EXAMPLELATLNG.length; i++) {
-        var loc  = EXAMPLELATLNG[i];
+      for (var i=0; i<EXAMPLEDATA.length; i++) {
+        var loc  = EXAMPLEDATA[i];
         var mark = new L.Marker(new L.LatLng(loc[0], loc[1]));
-        clumps.addMarker(mark);
+        pile.addLayer(mark);
       }
     </script>
 

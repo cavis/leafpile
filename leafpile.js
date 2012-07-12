@@ -1,6 +1,6 @@
 /* ==========================================================
- * leafclumper.js v0.0.1
- * http://github.com/cavis/leafclumper
+ * leafpile.js v0.0.1
+ * http://github.com/cavis/leafpile
  * ==========================================================
  * Copyright (c) 2012 Ryan Cavis
  *
@@ -19,12 +19,12 @@
 
 
 /* ==========================================================
- * L.MarkerClumper
+ * L.Leafpile
  *
- * A layer used to clump markers together into geographical
+ * A layer used to cluster markers together into geographical
  * groups based on screen spacing, updating with every zoom level.
  * ========================================================== */
-L.MarkerClumper = L.Class.extend({
+L.Leafpile = L.Class.extend({
     includes: L.Mixin.Events,
 
     options: {
@@ -41,7 +41,7 @@ L.MarkerClumper = L.Class.extend({
         }
     },
 
-    addMarker: function(mark) {
+    addLayer: function(mark) {
         var id = L.Util.stamp(mark);
         this._markers[id] = mark;
         if (this._map) {
@@ -50,7 +50,7 @@ L.MarkerClumper = L.Class.extend({
         return this;
     },
 
-    removeMarker: function(mark) {
+    removeLayer: function(mark) {
         var id = L.Util.stamp(mark);
         delete this._markers[id];
 
@@ -155,30 +155,30 @@ L.Icon.Clump = L.Icon.extend({
 
     _sizeOptions: {
         1: {
-            image: L.Icon.Default.prototype._getIconUrl('icon'),
-            iconSize: L.Icon.Default.prototype.options.iconSize,
-            iconAnchor: L.Icon.Default.prototype.options.iconAnchor,
-            popupAnchor: L.Icon.Default.prototype.options.popupAnchor,
+            image: '../PURPLE.png',
+            iconSize: new L.Point(15, 15),
+            iconAnchor: new L.Point(7, 7),
+            popupAnchor: new L.Point(0, 0),
             shadowSize: null
         },
         2: {
-            image: '../lc1.png',
-            iconSize: new L.Point(53, 52),
-            iconAnchor: new L.Point(27, 26),
+            image: '../2GREEN.png',
+            iconSize: new L.Point(40, 40),
+            iconAnchor: new L.Point(20, 20),
             popupAnchor: new L.Point(0, 0),
             shadowSize: null
         },
         10: {
-            image: '../lc1.png',
-            iconSize: new L.Point(53, 52),
-            iconAnchor: new L.Point(27, 26),
+            image: '../2BLUE.png',
+            iconSize: new L.Point(50, 50),
+            iconAnchor: new L.Point(25, 25),
             popupAnchor: new L.Point(0, 0),
             shadowSize: null
         },
         20: {
-            image: '../lc1.png',
-            iconSize: new L.Point(53, 52),
-            iconAnchor: new L.Point(27, 26),
+            image: '../2RED.png',
+            iconSize: new L.Point(60, 60),
+            iconAnchor: new L.Point(30, 30),
             popupAnchor: new L.Point(0, 0),
             shadowSize: null
         }
