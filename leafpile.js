@@ -28,12 +28,14 @@ L.Leafpile = L.Class.extend({
     includes: L.Mixin.Events,
 
     options: {
-        radius: 60
+        radius:   60,
+        autoPile: true
     },
 
+    // setup structs
     initialize: function(marks) {
         this._markers = {};
-        this._clumps  = {};
+        this._leafpiles = {};
         if (marks) {
             for (var i=0; i<marks.length; i++) {
                 this.addMarker(marks[i]);
@@ -41,53 +43,56 @@ L.Leafpile = L.Class.extend({
         }
     },
 
-    addLayer: function(mark) {
+    // add a marker
+    addMarker: function(mark) {
         var id = L.Util.stamp(mark);
         this._markers[id] = mark;
-        if (this._map) {
-            this._clumpMarker(mark);
-        }
+        if (this._map) this._pileMarker(mark);
         return this;
     },
 
-    removeLayer: function(mark) {
+    // remove a marker
+    removeMarker: function(mark) {
         var id = L.Util.stamp(mark);
         delete this._markers[id];
-
-        if (this._map) {
-            this._map.removeLayer(mark);
-        }
-
+        if (this._map) this._map.removeLayer(mark);
         return this;
     },
 
+    // clear all markers/piles
     clear: function() {
-        this._iterateClumps(this._map.removeLayer, this._map);
-        this._clumps = {};
+        this._iteratePiles(this._map.removeLayer, this._map);
+        this._leafpiles = {};
         return this;
     },
 
+    /* ========================================
+     * Private Methods
+     * ======================================== */
+
+    // setup event handlers on map add
     onAdd: function(map) {
         this._map = map;
         this._map.on('zoomend', this._onZoomEnd, this);
-        this._iterateMarkers(this._clumpMarker, this);
+        this._iterateMarkers(this._pileMarker, this);
     },
 
+    // remove all on map remove
     onRemove: function(map) {
-        this._iterateClumps(map.removeLayer, map);
+        this._iteratePiles(map.removeLayer, map);
         this._map = null;
     },
 
     _onZoomEnd: function(e) {
         this.clear();
-        this._iterateMarkers(this._clumpMarker, this);
+        this._iterateMarkers(this._pileMarker, this);
     },
 
-    _onClumpClick: function(e) {
-        this.fire('clumpclick', {
-            clump: e.target,
-            markers: e.markers,
-            zooming: (e.markers.length > 1)
+    _onPileClick: function(e) {
+        this.fire('leafpileclick', {
+            leafpile: e.target,
+            markers:  e.markers,
+            zooming:  (e.markers.length > 1)
         });
 
         // zoom in when multiple are clicked
@@ -100,31 +105,33 @@ L.Leafpile = L.Class.extend({
         }
     },
 
-    _clumpMarker: function(mark) {
+    // put a marker into a leafpile
+    _pileMarker: function(mark) {
         var point = this._map.latLngToLayerPoint(mark.getLatLng()),
-            clump = null, leastDistance = null;
-        for (var i in this._clumps) {
-            var dist = this._clumps[i].inBounds(point);
-            if (dist !== false && (!clump || dist < leastDistance)) {
-                clump = this._clumps[i];
+            pile = null, leastDistance = null;
+        for (var i in this._leafpiles) {
+            var dist = this._leafpiles[i].inBounds(point);
+            if (dist !== false && (!pile || dist < leastDistance)) {
+                pile = this._leafpiles[i];
                 leastDistance = dist;
             }
         }
 
         // add or create
-        if (clump) {
-            clump.addMarker(mark);
+        if (pile) {
+            pile.addMarker(mark);
         }
         else {
-            var clump = new L.Clump(mark, {radius: this.options.radius});
-            var id = L.Util.stamp(clump);
-            this._clumps[id] = clump;
-            this._clumps[id].on('click', this._onClumpClick, this);
-            this._map.addLayer(clump);
+            pile = new L.Leafpile.Marker(mark, {radius: this.options.radius});
+            var id = L.Util.stamp(pile);
+            this._leafpiles[id] = pile;
+            this._leafpiles[id].on('click', this._onPileClick, this);
+            this._map.addLayer(pile);
         }
         return this;
     },
 
+    // helper to iterate over markers
     _iterateMarkers: function(method, context) {
         for (var i in this._markers) {
             if (this._markers.hasOwnProperty(i)) {
@@ -133,10 +140,11 @@ L.Leafpile = L.Class.extend({
         }
     },
 
-    _iterateClumps: function(method, context) {
-        for (var i in this._clumps) {
-            if (this._clumps.hasOwnProperty(i)) {
-                method.call(context, this._clumps[i]);
+    // helper to iterate over piles
+    _iteratePiles: function(method, context) {
+        for (var i in this._leafpiles) {
+            if (this._leafpiles.hasOwnProperty(i)) {
+                method.call(context, this._leafpiles[i]);
             }
         }
     }
@@ -144,15 +152,16 @@ L.Leafpile = L.Class.extend({
 
 
 /* ==========================================================
- * L.Icon.Clump
+ * L.Leafpile.Icon
  *
- * An icon used for the clumping marker
+ * An icon used for the leafpile marker
  * ========================================================== */
-L.Icon.Clump = L.Icon.extend({
+L.Leafpile.Icon = L.Icon.extend({
     options: {
         size: null
     },
 
+    // private style - includes base64 png icons
     _sizeOptions: {
         1: {
             image: 'iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAKpJREFUeNpi/P//PwO5gImBAsACYzAyMoLpNN2JAUCqHogNkNRdAOLGWZfzN4A4MNei2AzU2ACk1qNpZIDy10Pl4YARZkq63qQAqEZ0sAOIdwKxOxB7AHHgzEt5G9BtrsfhtZ1QZ+9EV8eC5jRswB2NNsCmGRfwgGLqRhUTWnQQAy5g09xIpOZGDM3QBEDIAHhCwfAzUAKUCAKxeAHED4TKYyYSumcMgAADAC0VMpNJzrHjAAAAAElFTkSuQmCC',
@@ -184,26 +193,31 @@ L.Icon.Clump = L.Icon.extend({
         }
     },
 
+    // setup options
     initialize: function(size) {
-        this._setClumpOptions(size || 1);
+        this._setPileOptions(size || 1);
     },
 
+    // update the size of an existing pile
     update: function(size, div) {
-        this._setClumpOptions(size);
+        this._setPileOptions(size);
         this._setIconStyles(div, size)
     },
 
+    // make a new icon
     createIcon: function() {
         var div = document.createElement('div');
         this._setIconStyles(div);
         return div;
     },
 
+    // no shadows
     createShadow: function() {
         return null; // TODO: something else?
     },
 
-    _setClumpOptions: function(size) {
+    // change inline styles based on leafpile size
+    _setPileOptions: function(size) {
         for (var i in this._sizeOptions) {
             if (size <= i) {
                 this.options = this._sizeOptions[i];
@@ -212,6 +226,7 @@ L.Icon.Clump = L.Icon.extend({
         }
     },
 
+    // set some inline styles for the leafpile icon
     _setIconStyles: function(div, size) {
         L.Icon.prototype._setIconStyles.call(this, div, 'icon');
         div.style['cursor'] = 'pointer';
@@ -227,33 +242,38 @@ L.Icon.Clump = L.Icon.extend({
 
 
 /* ==========================================================
- * L.Clump
+ * L.Leafpile.Marker
  *
- * A marker representing a clump of other markers
+ * A marker representing a clustering of other markers
  * ========================================================== */
-L.Clump = L.Marker.extend({
+L.Leafpile.Marker = L.Marker.extend({
+
     options: {
         radius: 60
     },
 
+    // setup - requires a marker
     initialize: function(mark, options) {
         var id = L.Util.stamp(mark);
         this._markers = {id: mark};
         this._latlng = mark.getLatLng();
         L.Util.setOptions(this, options);
-        this.options.icon = new L.Icon.Clump(1);
+        this.options.icon = new L.Leafpile.Icon(1);
     },
 
+    // set center on map add
     onAdd: function(map) {
         L.Marker.prototype.onAdd.call(this, map);
         this._center = this._map.latLngToLayerPoint(this._latlng);
     },
 
+    // calculate if a point is within the bounds of the pile
     inBounds: function(point) {
         var dist = this._center.distanceTo(point);
         return (dist < this.options.radius ? dist : false);
     },
 
+    // add a marker to the pile
     addMarker: function(mark) {
         var id = L.Util.stamp(mark);
         this._markers[id] = mark;
@@ -269,12 +289,14 @@ L.Clump = L.Marker.extend({
         this.setLatLng(this._map.layerPointToLatLng(this._center));
     },
 
+    // remove a marker from the pile
     removeMarker: function(mark) {
         var id = L.Util.stamp(mark);
         delete this._markers[id];
         this._resetMapPosition();
     },
 
+    // re-calculate the leafpile position based on its markers
     _resetMapPosition: function() {
         var avg = [0, 0];
         var weight = Object.keys(this._markers).length;
@@ -288,7 +310,8 @@ L.Clump = L.Marker.extend({
         this.setLatLng(this._map.layerPointToLatLng(this._center));
     },
 
-    _onMouseClick: function (e) {
+    // fire a click event
+    _onMouseClick: function(e) {
         L.DomEvent.stopPropagation(e);
         var marks = [];
         for (var i in this._markers) marks.push(this._markers[i]);
@@ -296,4 +319,3 @@ L.Clump = L.Marker.extend({
     }
 
 });
-
