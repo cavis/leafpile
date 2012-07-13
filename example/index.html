@@ -12,6 +12,14 @@
     <style type="text/css">
       #options { margin-bottom: 30px; }
       #leaflet-map { height: 500px; width: 800px; }
+      .center { width:800px; margin:0 auto; }
+      #options { margin-bottom: 30px; }
+      #options h1 { margin-bottom: 0; }
+      #options p { margin-top: .5em; }
+      #options label { display: inline-block; width: 130px; clear: both; }
+      #options .column { display: inline-block; width: 390px; vertical-align: top; }
+      #options .span1 { width: 80px; }
+      #options .span2 { width: 170px; }
     </style>
   </head>
 
@@ -22,10 +30,26 @@
       <h1>Leafpile Plugin Demo</h1>
       <p>Source code and documentation available on <a href="https://github.com/cavis/leafpile">Github</a></p>
       <hr/>
+
+      <label>Radius:</label>
+      <input type="number" id="radius" class="span1" />
+      <br/>
+      <label>Max Zoom Change:</label>
+      <input type="number" id="maxZoomChange" class="span1" />
+      <br/>
+      <label>Auto Enable:</label>
+      <input type="checkbox" id="autoEnable" />
+      <br/>
+
+      <br/><br/>
+      <button id="addrand">Add</button>
+      <button id="rmvrand">Remove</button>
+      <button id="enable">Enable</button>
+      <button id="disable">Disable</button>
     </div>
 
     <!-- mapper container -->
-    <div id="leaflet-map"></div>
+    <div id="leaflet-map" class="center"></div>
 
     <!-- javascripts -->
     <script src="externals/leaflet/leaflet-src.js"></script>
@@ -51,6 +75,49 @@
         var loc  = EXAMPLEDATA[i];
         var mark = new L.Marker(new L.LatLng(loc[0], loc[1]));
         pile.addMarker(mark);
+      }
+
+      // generate random integers
+      function randomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      // set options inputs
+      var opts = pile.options;
+      for (var i in opts) {
+        if (l = document.getElementById(i)) {
+          var key = (opts[i] === true || opts[i] === false) ? 'checked' : 'value';
+          l[key] = opts[i];
+        }
+      }
+
+      // option changes
+      document.getElementById('radius').onchange = function() {
+        pile.setRadius(this.value);
+      }
+      document.getElementById('maxZoomChange').onchange = function() {
+        pile.options.maxZoomChange = parseInt(this.value);
+      }
+
+      // button handlers
+      document.getElementById('addrand').onclick = function() {
+        var ne = map.getBounds().getNorthEast();
+        var sw = map.getBounds().getSouthWest();
+        var lat = Math.random() * (ne.lat-sw.lat) + sw.lat;
+        var lng = -(Math.random() * (sw.lng-ne.lng) - sw.lng);
+        var mark = new L.Marker(new L.LatLng(lat, lng));
+        pile.addMarker(mark);
+      }
+      document.getElementById('rmvrand').onclick = function() {
+        var keys = Object.keys(pile._markers);
+        var idx = randomInt(0, keys.length - 1);
+        pile.removeMarker(pile._markers[keys[idx]]);
+      }
+      document.getElementById('enable').onclick = function() {
+        pile.enable();
+      }
+      document.getElementById('disable').onclick = function() {
+        pile.disable();
       }
     </script>
 
