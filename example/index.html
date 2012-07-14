@@ -37,6 +37,9 @@
       <label>Max Zoom Change:</label>
       <input type="number" id="maxZoomChange" class="span1" />
       <br/>
+      <label>Max Zoom Level:</label>
+      <input type="number" id="maxZoomLevel" class="span1" />
+      <br/>
       <label>Auto Enable:</label>
       <input type="checkbox" id="autoEnable" />
       <br/>
@@ -68,7 +71,6 @@
 
       // pile layer
       var pile = new L.Leafpile();
-      map.addLayer(pile);
 
       // example data
       for (var i=0; i<EXAMPLEDATA.length; i++) {
@@ -76,6 +78,7 @@
         var mark = new L.Marker(new L.LatLng(loc[0], loc[1]));
         pile.addMarker(mark);
       }
+      map.addLayer(pile);
 
       // generate random integers
       function randomInt(min, max) {
@@ -97,6 +100,9 @@
       }
       document.getElementById('maxZoomChange').onchange = function() {
         pile.options.maxZoomChange = parseInt(this.value);
+      }
+      document.getElementById('maxZoomLevel').onchange = function() {
+        pile.options.maxZoomLevel = parseInt(this.value);
       }
 
       // button handlers

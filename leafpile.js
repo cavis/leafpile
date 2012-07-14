@@ -27,68 +27,87 @@
 L.Leafpile = L.Class.extend({
     includes: L.Mixin.Events,
 
+    /* ========================================
+     * Configuration Options
+     * ======================================== */
+
     options: {
-        radius:   60,
+        radius:        60,
         maxZoomChange: 2,
-        autoEnable: true
+        maxZoomLevel:  8,
+        autoEnable:    true
     },
 
-    // setup structs
-    initialize: function(marks) {
-        this._markers = {};
-        this._leafpiles = {};
-        this._grouping = this.options.autoEnable;
-        if (marks) {
-            for (var i=0; i<marks.length; i++) {
-                this.addMarker(marks[i]);
+    /* ========================================
+     * Public Methods
+     * ======================================== */
+
+    // add a marker
+    addMarker: function(mark) {
+        var id = L.Util.stamp(mark);
+        this._markers[id] = mark;
+        if (!this._map) return this;
+
+        // add to map or pile
+        if (this._enabled) {
+            this._pileMarker(mark);
+        }
+        else {
+            this._map.addLayer(mark);
+        }
+        return this;
+    },
+
+    // get markers from the map
+    getMarkers: function() {
+        return Object.values(this._markers);
+    },
+
+    // remove a marker
+    removeMarker: function(mark) {
+        var id = L.Util.stamp(mark);
+        delete this._markers[id];
+        if (!this._map) return this;
+
+        // remove from map or pile
+        if (this._enabled) {
+            for (var i in this._leafpiles) {
+                this._leafpiles[i].removeMarker(mark);
             }
         }
+        else {
+            this._map.removeLayer(mark);
+        }
+        return this;
     },
 
     // change the radius of the groupings
     setRadius: function(radius) {
         if (radius == 0) return this.disable();
         this.options.radius = radius;
+        if (!this._map) return this;
 
-        // activate grouping
-        this.enable();
-        this._grouping = true;
-        this._iteratePiles(this._map.removeLayer, this._map);
-        this._leafpiles = {};
+        // check zoom level - don't auto-enable if too zoomed
+        if (this._map.getZoom() > this.options.maxZoomLevel) return false;
+
+        // clear the map
+        if (this._enabled) {
+            this._iteratePiles(this._map.removeLayer, this._map);
+            this._leafpiles = {};
+        }
+        else {
+            this._iterateMarkers(this._map.removeLayer, this._map);
+        }
+
+        // regroup the piles
         this._iterateMarkers(this._pileMarker, this);
-    },
-
-    // add a marker
-    addMarker: function(mark) {
-        var id = L.Util.stamp(mark);
-        this._markers[id] = mark;
-        if (this._map) {
-            if (this._grouping) this._pileMarker(mark);
-            else this._map.addLayer(mark);
-        }
-        return this;
-    },
-
-    // remove a marker TODO TODO TODO
-    removeMarker: function(mark) {
-        var id = L.Util.stamp(mark);
-        delete this._markers[id];
-        if (this._map) {
-            if (this._grouping) {
-                for (var i in this._leafpiles) {
-                    this._leafpiles[i].removeMarker(mark);
-                }
-            }
-            else {
-                this._map.removeLayer(mark);
-            }
-        }
+        this._enabled = true;
         return this;
     },
 
     // clear all markers/piles
     clear: function() {
-        if (this._grouping) this._iteratePiles(this._map.removeLayer, this._map);
+        if (this._enabled) this._iteratePiles(this._map.removeLayer, this._map);
         else this._iterateMarkers(this._map.removeLayer, this._map);
         this._leafpiles = {};
         this._markers = {};
@@ -97,42 +116,80 @@ L.Leafpile = L.Class.extend({
 
     // enable the grouping of markers in this layer
     enable: function() {
-        if (!this._grouping) {
+        if (!this._enabled) {
+            this._enabled = true;
+            if (!this._map) return this;
+
+            // check zoom level
+            if (this._map.getZoom() > this.options.maxZoomLevel) return false;
+            this._zoomDisabledMe = false;
+
+            // remove markers, add piles
             this._iterateMarkers(this._map.removeLayer, this._map);
-            this._iteratePiles(this._map.addLayer, this._map);
-            this._grouping = true;
+            this._iterateMarkers(this._pileMarker, this);
         }
+        return this;
     },
 
     // disable grouping of markers in this layer
     disable: function() {
-        if (this._grouping) {
+        if (this._enabled) {
+            this._enabled = false;
+            this._zoomDisabledMe = false;
+            if (!this._map) return this;
+
+            // remove piles, add markers
             this._iteratePiles(this._map.removeLayer, this._map);
+            this._leafpiles = {};
             this._iterateMarkers(this._map.addLayer, this._map);
-            this._grouping = false;
         }
+        return true;
     },
 
     /* ========================================
      * Private Methods
      * ======================================== */
 
+    // setup structs
+    initialize: function(options) {
+        L.Util.setOptions(this, options);
+        this._markers = {};
+        this._leafpiles = {};
+        this._enabled = this.options.autoEnable;
+    },
+
     // setup event handlers on map add
     onAdd: function(map) {
         this._map = map;
         this._map.on('zoomend', this._onZoomEnd, this);
-        if (this._grouping) this._iterateMarkers(this._pileMarker, this);
+        if (map.getZoom() > this.options.maxZoomLevel) {
+            this._enabled = false;
+            this._zoomDisabledMe = true;
+        }
+
+        // re-add markers (will not double-add since they're stamped)
+        this._iterateMarkers(this.addMarker, this);
+        return this;
     },
 
     // remove all on map remove
     onRemove: function(map) {
-        if (this._grouping) this._iteratePiles(this._map.removeLayer, this._map);
-        else this._iterateMarkers(this._map.removeLayer, this._map);
+        this.clear();
         this._map = null;
     },
 
     _onZoomEnd: function(e) {
-        if (this._grouping) {
+        var zoom = this._map.getZoom();
+
+        // check against max zoom level
+        if (this._enabled && zoom > this.options.maxZoomLevel) {
+            this.disable();
+            this._zoomDisabledMe = true;
+        }
+        else if (zoom <= this.options.maxZoomLevel && this._zoomDisabledMe) {
+            this.enable();
+        }
+        else if (this._enabled) {
             this._iteratePiles(this._map.removeLayer, this._map);
             this._leafpiles = {};
             this._iterateMarkers(this._pileMarker, this);
