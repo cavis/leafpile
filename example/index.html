@@ -71,6 +71,7 @@
 
       // pile layer
       var pile = new L.Leafpile();
+      map.addLayer(pile);
 
       // example data
       for (var i=0; i<EXAMPLEDATA.length; i++) {
@@ -78,7 +79,6 @@
         var mark = new L.Marker(new L.LatLng(loc[0], loc[1]));
         pile.addMarker(mark);
       }
-      map.addLayer(pile);
 
       // generate random integers
       function randomInt(min, max) {

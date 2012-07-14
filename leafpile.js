@@ -1,20 +1,10 @@
 /* ==========================================================
- * leafpile.js v0.0.1
+ * leafpile.js v0.1.0
+ * A marker clustering layer for Leaflet maps
  * http://github.com/cavis/leafpile
  * ==========================================================
  * Copyright (c) 2012 Ryan Cavis
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed under http://en.wikipedia.org/wiki/MIT_License
  * ========================================================== */
 
 
@@ -25,6 +15,7 @@
  * groups based on screen spacing, updating with every zoom level.
  * ========================================================== */
 L.Leafpile = L.Class.extend({
+
     includes: L.Mixin.Events,
 
     /* ========================================
@@ -198,10 +189,12 @@ L.Leafpile = L.Class.extend({
 
     _onPileClick: function(e) {
         this.fire('leafpileclick', {
-            leafpile: e.target,
-            markers:  e.markers,
-            zooming:  (e.markers.length > 1)
+            leafpile:   e.target,
+            markers:    e.markers,
+            zooming:    (e.markers.length > 1),
+            cancelZoom: function() { e.cancel = true; }
         });
+        if (e.cancel === true) return;
 
         // zoom in when multiple are clicked
         if (e.markers.length > 1) {
@@ -366,7 +359,8 @@ L.Leafpile.Marker = L.Marker.extend({
     // setup - requires a marker
     initialize: function(mark, options) {
         var id = L.Util.stamp(mark);
-        this._markers = {id: mark};
+        this._markers = {};
+        this._markers[id] = mark;
         this._latlng = mark.getLatLng();
         L.Util.setOptions(this, options);
         this.options.icon = new L.Leafpile.Icon(1);
