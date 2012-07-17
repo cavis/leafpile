@@ -43,12 +43,16 @@
       <label>Auto Enable:</label>
       <input type="checkbox" id="autoEnable" />
       <br/>
+      <label>Single Piles:</label>
+      <input type="checkbox" id="singlePiles" />
+      <br/>
 
       <br/><br/>
       <button id="addrand">Add</button>
       <button id="rmvrand">Remove</button>
       <button id="enable">Enable</button>
       <button id="disable">Disable</button>
+      <button id="popup">Popup</button>
     </div>
 
     <!-- mapper container -->
@@ -72,6 +76,9 @@
       // pile layer
       var pile = new L.Leafpile();
       map.addLayer(pile);
+      pile.on('leafpileclick',function(e) {
+        console.log("ECEH", e);
+      });
 
       // example data
       for (var i=0; i<EXAMPLEDATA.length; i++) {
@@ -124,6 +131,13 @@
       }
       document.getElementById('disable').onclick = function() {
         pile.disable();
+      }
+      document.getElementById('popup').onclick = function() {
+        var keys = Object.keys(pile._markers);
+        var idx = randomInt(0, keys.length - 1);
+        var mark = pile._markers[keys[idx]];
+        mark.bindPopup("hello world from marker "+(idx+1));
+        mark.openPopup();
       }
     </script>
 

@@ -64,6 +64,8 @@ These are passed as an object to the L.Leafpile constructor
 
 `autoEnable` - When set to true, will automatically start grouping markers as you add them. Otherwise, plain markers will show up until you `enable()` the Leafpile - __(default: true)__
 
+`singlePiles` - When set to true, single markers will be displayed with the special "pile icon".  When false, the markers will display normally until there are 2 things in the pile.  Defaults to false.
+
 
 Functions
 ------------
@@ -90,10 +92,23 @@ After creating the Leafpile, these public methods are available for your use and
 `disable`__()__ - ungroup markers on this layer
 
 
+Events
+------------
+
+`leafpileclick` - listen for someone clicking on a leafpile
+
+    leafpile.on('leafpileclick', function(e) {
+        // e.markers - array of markers in the clicked leafpile
+        // e.leafpile -  the clicked leafpile marker
+        // e.zooming - if true, the map is about to zoom in
+        // e.cancelZoom() - function to call if you want to cancel zooming
+    });
+
+
 Issues and Contributing
 -----------------------
 
-Please, let me know about any bugs/feature-requests via the issues tracker.  I've got a few things in the pipeline already (grouping-by-state, better images, shared marker popups), but I'm always looking for new ideas.  And if you'd like to contribute, send me a note!  Thanks.
+Please, let me know about any bugs/feature-requests via the issues tracker.  I've got a few things in the pipeline already (grouping-by-state, better images), but I'm always looking for new ideas.  And if you'd like to contribute, send me a note!  Thanks.
 
 
 License

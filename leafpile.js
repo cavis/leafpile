@@ -1,5 +1,5 @@
 /* ==========================================================
- * leafpile.js v0.1.0
+ * leafpile.js v0.1.1
  * A marker clustering layer for Leaflet maps
  * http://github.com/cavis/leafpile
  * ==========================================================
@@ -26,7 +26,8 @@ L.Leafpile = L.Class.extend({
         radius:        60,
         maxZoomChange: 2,
         maxZoomLevel:  8,
-        autoEnable:    true
+        autoEnable:    true,
+        singlePiles:   false
     },
 
     /* ========================================
@@ -51,7 +52,9 @@ L.Leafpile = L.Class.extend({
 
     // get markers from the map
     getMarkers: function() {
-        return Object.values(this._markers);
+        var marks = [];
+        for (var i in this._markers) marks.push(this._markers[i]);
+        return marks;
     },
 
     // remove a marker
@@ -63,7 +66,9 @@ L.Leafpile = L.Class.extend({
         // remove from map or pile
         if (this._enabled) {
             for (var i in this._leafpiles) {
-                this._leafpiles[i].removeMarker(mark);
+                if (this._leafpiles[i].hasMarker(mark)) {
+                    this._leafpiles[i].removeMarker(mark);
+                }
             }
         }
         else {
@@ -84,6 +89,7 @@ L.Leafpile = L.Class.extend({
         // clear the map
         if (this._enabled) {
             this._iteratePiles(this._map.removeLayer, this._map);
+            this._iterateMarkers(this._map.removeLayer, this._map);
             this._leafpiles = {};
         }
         else {
@@ -98,8 +104,8 @@ L.Leafpile = L.Class.extend({
 
     // clear all markers/piles
     clear: function() {
-        if (this._enabled) this._iteratePiles(this._map.removeLayer, this._map);
-        else this._iterateMarkers(this._map.removeLayer, this._map);
+        this._iteratePiles(this._map.removeLayer, this._map);
+        this._iterateMarkers(this._map.removeLayer, this._map);
         this._leafpiles = {};
         this._markers = {};
         return this;
@@ -182,6 +188,7 @@ L.Leafpile = L.Class.extend({
         }
         else if (this._enabled) {
             this._iteratePiles(this._map.removeLayer, this._map);
+            this._iterateMarkers(this._map.removeLayer, this._map);
             this._leafpiles = {};
             this._iterateMarkers(this._pileMarker, this);
         }
@@ -197,7 +204,7 @@ L.Leafpile = L.Class.extend({
         if (e.cancel === true) return;
 
         // zoom in when multiple are clicked
-        if (e.markers.length > 1) {
+        if (e.markers.length > 1 || this.options.singlePiles) {
             var all = [];
             for (var i=0; i<e.markers.length; i++) {
                 all.push(e.markers[i].getLatLng());
@@ -226,11 +233,13 @@ L.Leafpile = L.Class.extend({
             pile.addMarker(mark);
         }
         else {
-            pile = new L.Leafpile.Marker(mark, {radius: this.options.radius});
+            pile = new L.Leafpile.Marker(mark, this._map, {
+                radius:      this.options.radius,
+                singlePiles: this.options.singlePiles
+            });
             var id = L.Util.stamp(pile);
             this._leafpiles[id] = pile;
             this._leafpiles[id].on('click', this._onPileClick, this);
-            this._map.addLayer(pile);
         }
         return this;
     },
@@ -268,31 +277,31 @@ L.Leafpile.Icon = L.Icon.extend({
     // private style - includes base64 png icons
     _sizeOptions: {
         1: {
-            image: 'iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAKpJREFUeNpi/P//PwO5gImBAsACYzAyMoLpNN2JAUCqHogNkNRdAOLGWZfzN4A4MNei2AzU2ACk1qNpZIDy10Pl4YARZkq63qQAqEZ0sAOIdwKxOxB7AHHgzEt5G9BtrsfhtZ1QZ+9EV8eC5jRswB2NNsCmGRfwgGLqRhUTWnQQAy5g09xIpOZGDM3QBEDIAHhCwfAzUAKUCAKxeAHED4TKYyYSumcMgAADAC0VMpNJzrHjAAAAAElFTkSuQmCC',
-            iconSize: new L.Point(15, 15),
-            iconAnchor: new L.Point(7, 7),
-            popupAnchor: new L.Point(0, 0),
+            image: 'iVBORw0KGgoAAAANSUhEUgAAABkAAAAZCAMAAADzN3VRAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAADNQTFRFAAAA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA/5kA8jf0CQAAABB0Uk5TABAgMEBQYHCAj5+vv8/f7yMagooAAACJSURBVHjapZFJDsMgDEVraKAeCr7/aUsIyMJJNulfWIgnT9+vfxQyYxTO4P6BtCnvgRYWq+6SHmt0wGQIBjA0C6J60UhpT580ct7iAELogLSsoMxyLuOY/zHhC8KdpAuS7vZRuPMAp29tgWHd8ShgXn9tjM9yhhCqubnF5aZ46mEssYhQai2e6wcf9hSNzav/NAAAAABJRU5ErkJggg==',
+            iconSize: new L.Point(25, 25),
+            iconAnchor: new L.Point(12, 12),
+            popupAnchor: new L.Point(0, -8),
             shadowSize: null
         },
         2: {
-            image: 'iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAABNRJREFUeNrEWE1vlFUUnk6n7UBbOhZbKwJC8ZMQU3ChpiIuTCTAQn+Aste1YeWKP+DKNZpo4gJhAdGEHUiAGC2KGogV8AMyadpxOjM2ZaYtPsc8NzmenvdzSLjJk/d973s/nnu+7rm3p9BF+fjC9AAeJaD43v6LTVVfxGMQWANW8O9e3jlKOUiV8Qgoql9N9d4HDKs+QnRZALLLWebryUhsBOiNaLIQJIW2w5qgKavAYlqipRTEhNAjQH+KsYIqe2Payb9RjNvG828QXY0btJhCamMx5MaBl4BDwD5V/ybwBrAX2BTRV8Yc4xzZJYiOG/GoOL8GOPHTyhGkrAAX+P48n5NcQB34EfjFEZBIsw5JLqWWYAy5l4F3gBeADYqclAn2nTB91ijF/cC7wDZn3ArnTHYSho7NjtQOU933YzTyEbADeCvBrESS5+MczSXI+DVuJCvfBxlWPDvaSu+W92OU8tuU3CJwF2g5grkDnFOOFaQ9B5JrUTZYMeQGIsgJmWeAx4G2qt9H+wvtRW07gXnghiIqWtgCvEaSWrrCobbOBqlaS+SwUzdKe9psyEnZBTxl6iTeDdFZJs2/SUpclzK5rHOSYcchxhxyL9JjvTJBMl5Z4QI0yfuMCOOm7aCn4iZJ9lO1e4xDBHJWamXaoRCbUvWi1qpZTJskpdxUO8s0cEpJfDHOi2XCA8Ar5tcBJ4buILlCjNRuA385fa8omxRNfg7civViQ3RKOYio5UkV90qU1lDKrVwked3UCbnvGMRPg9jtzMkCpSm2+AE9MpTnQmDOUH6i2kMRTz0OYldjsxmSGA25G/AYnaNOVCmx9ynRirG1tEXGvswxT4LYCc49wTErNIdWyDFlESXmbsEO+ml72q5CvJOVzgJHusg9y1zwNMgdpdNcUm2+BWZ0XlmK2B08l59SwTxv2Wp2FRtj+zKlWxGEy10QLCeMXchD8KGWNARbztaVt9i+7TwEbaeO+a53QbCesPiOR9BWLpjvebMlVnOSWzFxsKC3NMZk+7/jEbxlJFtzpDCfg+Cs2ZfLzBX1ae/PdQR5qtInqzngnwTS1x31JG11VUczegy71a0Kt2KE8f5qvm+a1cv7N04S4Kn1qrMPi/SuGVO74TlUMcJYZ5yzx4yKW9L+DNV2mUTrJLTM91m1tX1iYt/PxhnnHPW2/pcsYOt51ATO3cycbU74LPfl4xkShq+BH4APgd9ULhgO8p8BDR1JoN75QszdSoEnrzumToz6KMlvyWCDB3kuPmbI9TAvbJj2zXVxkImiPTyfU41FVSfQrsr88HeVdSRtlRK6XkVfsdvTipyQ/d60X9JJq00WGkz3w92KNPySOeEpufBhIlvh4ILtTFxHzEF+iXGuSnvbLemV5H94hpzyvHOx1IjcSXgerZmJxFi/ULdRr5tB/6A5XKK6Aq7xX9scxApMUk+aef6bW5+J3a0ODTpqFR2e9tfoSOMMET05ArXMtYuXA2GeBUWywbrkZIEXOTVNTq3yU14SNVImGyWGobPAV/pIqUjWoi6Pslxgenc2m9SR8wkVktrcKWqMb7HXGw/qCti7MW04V2ppVD3ohLWuE9ZmmvwtRWlnGSezsfNKeIjO0puy2yq3wFbSlW/XBB2yfd5hR0WBTlZSuvwrwACGr5zwIv/jvAAAAABJRU5ErkJggg==',
-            iconSize: new L.Point(40, 40),
-            iconAnchor: new L.Point(20, 20),
-            popupAnchor: new L.Point(0, 0),
+            image: 'iVBORw0KGgoAAAANSUhEUgAAADcAAAA3CAMAAACfBSJ0AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAVNQTFRFAAAAM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzM8wzL/W2aAAAAHB0Uk5TAAIDBQcICQoLDA0ODxASFBUWFxgZGiAhIiQoLjA2Nzg8PT5AQkRIS0xQUVJUV1heX2BjZGZoaWprbG9wcXJzd3h5fn+AgYKDhIaMkpibnqKmp6irrK2vs7W3ubu9v8HDxcfJy8/T19vf4+fr7/P3+1dhVJMAAAOoSURBVHjavZbrWxJBFIcHhVbJFXJbSdrQNK+USlhaSZAt4AUzrcTUZSEvoZbx/39q5pzZ2WEv+Dx96PcB5nLePXPmcmaIX/1DSZ0KylFWSg71k7sUUUZ0FNjGeWVEifTE4pruKMbqw6KqxcOpKPUlBHZyw0g0ZIhDuqwEa9O7NBQ02L6ka2As5NcLtC21ubo0nXbbk33+WRSRpReLFZOKBjjO/iuF6ZSIsj8MSy9XTdQoITO8uJFNCTAYy1KKa5yQnKiUMkFghGNGoWwKzRNiuqosOqA0OXxKMhuS4U6BPKjV3Hr5PR9r0l1tbJiuODZbe0c/bItMWI3W6eGO0+qAcSc47q3iUPWmxaTl4M8+qXlAHmICY3MGeUAp0ESVF+zjLexakbYEUbBS4M6OGhZXbp/+cHIHY8yireLuwWwZMUo5ou6EmghWDdyqjFNhufm6udj5z3b74swLrklno48GuIzYIefOrjuo27bNwRbEWMnI2zv6CN3VmhjNVcfVnwsOHoNJXu3a2+l3rNFG7HenS1d8bthy5FTvgTBK5l6DYx61ETwxc6PEr9jUIXTfdHw6h44vjyVrLTEcVxIxKA8W2Tx2/Lql7fsz/PP3lbiawEzwkg48N/XM0LSi9asToMt6bnDMWJnKvTLNSUYgV4SpOqJf3T3pBOlmty6WYt7lqu6aX3YChTMDG3zJy7VYVzuYw43ziZmt3sX5Z/Tgv3HyOP9xXl64XEmsg9UKXgfpSCy4XB64z6wvZN2h6xTMMi43Cw3bTSt0n4EO4chDcsIsYWAqOwnb1xd45LeZUUEHTnU3Wug5unLOEdMscgpmJRNkBZ7ba54odmCYaeQieAttYm5vgcX3rjxxVpeiM/M6CNOZyEtf2Uh3q9a5nJeeA9hw8hKTyp8aeopna5p1d8dEHryEbVIdqzuTYi6ju6hI83NlDn4gRcsjbayOwZkfU26ij+In3ji33mDdyxVJGodTeSrcCYepEr8s5+yGh7NVorHe8qJ8r5A+jV9IgMVoPrRt+Wqob9NmCpZ5cJqTeQd0Ds7TyhQk7m+nrSZ11Goc7bF5VOn3XnNMH0DKfU49JOCOa7tWE1cty4H3+G0+LL0LknircXd+lWLCKhnxPCgUKLwN5CpPnM9rEc8DRsHLN5XdKPuotQw1B1ALforCsZrOb8rQxrIhHhER/8tOvutTk/Nrq8VqdX11adbofu6EuQuV0gOL6eEa6eUvmgjDEnRP9iTVIEr1Un8BTudQx/p5D9QAAAAASUVORK5CYII=',
+            iconSize: new L.Point(55, 55),
+            iconAnchor: new L.Point(27, 27),
+            popupAnchor: new L.Point(0, -14),
             shadowSize: null
         },
         10: {
-            image: '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',
-            iconSize: new L.Point(50, 50),
-            iconAnchor: new L.Point(25, 25),
-            popupAnchor: new L.Point(0, 0),
+            image: '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',
+            iconSize: new L.Point(65, 65),
+            iconAnchor: new L.Point(32, 32),
+            popupAnchor: new L.Point(0, -18),
             shadowSize: null
         },
         20: {
-            image: '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',
-            iconSize: new L.Point(60, 60),
-            iconAnchor: new L.Point(30, 30),
-            popupAnchor: new L.Point(0, 0),
+            image: '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',
+            iconSize: new L.Point(75, 75),
+            iconAnchor: new L.Point(37, 37),
+            popupAnchor: new L.Point(0, -22),
             shadowSize: null
         }
     },
@@ -338,9 +347,9 @@ L.Leafpile.Icon = L.Icon.extend({
         div.style['text-align'] = 'center';
         div.style['font-size'] = '12px';
         div.style['font-weight'] = 'bold';
-        div.style['color'] = 'white';
+        div.style['color'] = '#fff';
         div.style['line-height'] = this.options.iconSize.y+'px';
-        div.innerHTML = (size > 1 ) ? size : '';
+        div.innerHTML = size;
     }
 });
 
@@ -353,25 +362,49 @@ L.Leafpile.Icon = L.Icon.extend({
 L.Leafpile.Marker = L.Marker.extend({
 
     options: {
-        radius: 60
+        radius:      60,
+        singlePiles: false
     },
 
     // setup - requires a marker
-    initialize: function(mark, options) {
+    initialize: function(mark, map, options) {
+        L.Util.setOptions(this, options);
+        this.options.icon = new L.Leafpile.Icon(1);
+        this._map = map;
+
+        // setup markers
         var id = L.Util.stamp(mark);
         this._markers = {};
         this._markers[id] = mark;
+        mark._leafpile = this;
+        L.Util.extend(mark, {openPopup: this._openMemberMarkerPopup});
+
+        // set cluster center
         this._latlng = mark.getLatLng();
-        L.Util.setOptions(this, options);
-        this.options.icon = new L.Leafpile.Icon(1);
+        this._center = this._map.latLngToLayerPoint(this._latlng);
+
+        // add something to the map
+        if (this.options.singlePiles) {
+            this._map.addLayer(this);
+            this.options.icon.update(1, this._icon);
+        }
+        else {
+            this._map.addLayer(mark);
+        }
     },
 
-    // set center on map add
-    onAdd: function(map) {
-        L.Marker.prototype.onAdd.call(this, map);
-        this._center = this._map.latLngToLayerPoint(this._latlng);
-        this.options.icon.update(Object.keys(this._markers).length, this._icon);
+    // make sure to cleanup single markers too
+    onRemove: function(map) {
+        if (!this.options.singlePiles && this.size() == 1) {
+            this._map.removeLayer(this.first());
+        }
+
+        // default marker stuff
+        this._removeIcon();
+        if (this.closePopup) this.closePopup();
+        map.off('viewreset', this._reset, this);
     },
+
 
     // calculate if a point is within the bounds of the pile
     inBounds: function(point) {
@@ -381,9 +414,15 @@ L.Leafpile.Marker = L.Marker.extend({
 
     // add a marker to the pile
     addMarker: function(mark) {
+        if (!this.options.singlePiles && this.size() == 1) {
+            this._map.removeLayer(this.first());
+            this._map.addLayer(this);
+        }
+
         var id = L.Util.stamp(mark);
         this._markers[id] = mark;
-        var weight = Object.keys(this._markers).length;
+        mark._leafpile = this;
+        var weight = this.size();
         this.options.icon.update(weight, this._icon);
 
         // weighted average the point location
@@ -393,20 +432,55 @@ L.Leafpile.Marker = L.Marker.extend({
             (this._center.y * (weight-1) + point.y) / weight
         );
         this.setLatLng(this._map.layerPointToLatLng(this._center));
+
+        // hijack popup Methods
+        L.Util.extend(mark, {openPopup: this._openMemberMarkerPopup});
+    },
+
+    // for now, just steal content - TODO: something better
+    _openMemberMarkerPopup: function() {
+        if (this._popup && !this._map && this._leafpile) {
+            this._leafpile.bindPopup(this._popup._content);
+            this._leafpile.openPopup();
+            return this;
+        }
+        else {
+            return L.Marker.prototype.openPopup.call(this);
+        }
+    },
+
+    // check if a marker belongs to this pile
+    hasMarker: function(mark) {
+        var id = L.Util.stamp(mark);
+        return (this._markers[id] ? true : false);
     },
 
     // remove a marker from the pile
     removeMarker: function(mark) {
+        if (!this.hasMarker(mark)) return false;
         var id = L.Util.stamp(mark);
         delete this._markers[id];
-        this._resetMapPosition();
-        this.options.icon.update(Object.keys(this._markers).length, this._icon);
+        delete mark._leafpile;
+
+        // sort of complex cases here
+        if (this.size() == 1 && !this.options.singlePiles) {
+            this._map.removeLayer(this);
+            this._map.addLayer(this.first());
+        }
+        else if (this.size() == 0) {
+            this._map.removeLayer(this);
+            this._map.removeLayer(mark);
+        }
+        else {
+            this._resetMapPosition();
+            this.options.icon.update(Object.keys(this._markers).length, this._icon);
+        }
     },
 
     // re-calculate the leafpile position based on its markers
     _resetMapPosition: function() {
         var avg = [0, 0];
-        var weight = Object.keys(this._markers).length;
+        var weight = this.size();
         for (var i in this._markers) {
             var mark = this._markers[i];
             var point = this._map.latLngToLayerPoint(mark.getLatLng());
@@ -423,6 +497,22 @@ L.Leafpile.Marker = L.Marker.extend({
         var marks = [];
         for (var i in this._markers) marks.push(this._markers[i]);
         this.fire('click', {originalEvent: e, markers: marks});
+    },
+
+    // get the size of the pile
+    size: function() {
+        var size = 0;
+        for (var i in this._markers) if (this._markers.hasOwnProperty(i)) size++;
+        return size;
+    },
+
+    // get the first marker off the pile
+    first: function() {
+        if (this.size() > 0) {
+            var key = Object.keys(this._markers)[0];
+            return this._markers[key];
+        }
+        return null;
     }
 
 });
