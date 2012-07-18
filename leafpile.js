@@ -50,6 +50,12 @@ L.Leafpile = L.Class.extend({
         return this;
     },
 
+    // add a layer ... fails for non-markers
+    addLayer: function(layer) {
+        if (layer instanceof L.Marker) return this.addMarker(layer);
+        throw new Error('Sorry, but L.Leafpile can only hold markers right now.');
+    },
+
     // get markers from the map
     getMarkers: function() {
         var marks = [];
@@ -75,6 +81,12 @@ L.Leafpile = L.Class.extend({
             this._map.removeLayer(mark);
         }
         return this;
+    },
+
+    // add a layer ... fails for non-markers
+    removeLayer: function(layer) {
+        if (layer instanceof L.Marker) return this.removeMarker(layer);
+        throw new Error('Sorry, but L.Leafpile can only hold markers right now.');
     },
 
     // change the radius of the groupings

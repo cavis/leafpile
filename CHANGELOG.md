@@ -17,3 +17,4 @@ Leafpile Versions!
 * Allow "pile'd" markers to display their own popups through their `L.Leafpile.Marker`.  Basically, if you just call `openPopup()` on any marker in the Leafpile, and it will be displayed aligned with the pile.
 * Add option for single-marker leafpiles to either display the new circular icons, or the boring-ol' default marker icons.
 * Misc bug fixes related to add/removing markers from things.
+* The usual leaflet `addLayer()` and `removeLayer()` functions now alias to `addMarker()` and `removeMarker()`.
