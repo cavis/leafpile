@@ -184,6 +184,7 @@ L.Leafpile = L.Class.extend({
     // remove all on map remove
     onRemove: function(map) {
         this.clear();
+        this._map.off('zoomend', this._onZoomEnd, this);
         this._map = null;
     },
 
