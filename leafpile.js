@@ -414,7 +414,7 @@ L.Leafpile.Marker = L.Marker.extend({
         // default marker stuff
         this._removeIcon();
         if (this.closePopup) this.closePopup();
-        map.off('viewreset', this._reset, this);
+        map.off({viewreset: this.update, zoomanim: this._animateZoom}, this);
     },
 
 
