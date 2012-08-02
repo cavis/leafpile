@@ -1,8 +1,6 @@
 var deps = {
-
     Core: {
-        src: ['LeafpileGroup.js',
-              'Leafpile.js'],
+        src: ['LeafpileGroup.js', 'LeafpileIcon.js', 'Leafpile.js'],
         desc: 'The whole library.'
     }
 };

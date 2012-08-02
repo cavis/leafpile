@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Leafpile Marker Clustering Example</title>
+    <title>Leafpile Basic Marker Clustering Example</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Demo of Leafpile functionality">
     <meta name="author" content="cavis">
 
     <!-- styles -->
-    <link href="externals/leaflet/leaflet.css" rel="stylesheet">
+    <link href="../external/leaflet/leaflet.css" rel="stylesheet">
     <style type="text/css">
       #options { margin-bottom: 30px; }
       #leaflet-map { height: 500px; width: 800px; }
@@ -59,41 +59,46 @@
     <div id="leaflet-map" class="center"></div>
 
     <!-- javascripts -->
-    <script src="externals/leaflet/leaflet-src.js"></script>
+    <script src="../external/leaflet/leaflet-src.js"></script>
     <script src="http://maps.stamen.com/js/tile.stamen.js"></script>
-    <script src="../leafpile.js"></script>
+    <script src="../dist/leafpile-src.js"></script>
 
     <!-- sample data -->
-    <script src="data.js"></script>
+    <script src="data-200.js"></script>
 
     <!-- initialize leafpile -->
     <script type="text/javascript">
       var map = new L.Map('leaflet-map');
       var tiles = new L.StamenTileLayer('toner');
       map.addLayer(tiles);
-      map.setView(new L.LatLng(40.423, -98.7372), 4);
-
-      // pile layer
-      var pile = new L.Leafpile();
-      map.addLayer(pile);
-      pile.on('leafpileclick',function(e) {
-        console.log("CLICKED!", e);
-      });
+      map.setView(new L.LatLng(44.943829, -93.093326), 12);
 
       // example data
+      var markers = [];
       for (var i=0; i<EXAMPLEDATA.length; i++) {
         var loc  = EXAMPLEDATA[i];
         var mark = new L.Marker(new L.LatLng(loc[0], loc[1]));
-        pile.addMarker(mark);
+        markers.push(mark);
       }
+
+      // pile layer
+      var options = {radius: 120};
+      var pile = new L.LeafpileGroup(options, markers);
+      map.addLayer(pile);
+      // pile.on('leafpileclick',function(e) {
+      //   console.log("CLICKED!", e);
+      // });
+
+      // example data
+
 
       // generate random integers
-      function randomInt(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-      }
+      // function randomInt(min, max) {
+      //   return Math.floor(Math.random() * (max - min + 1)) + min;
+      // }
 
       // set options inputs
-      var opts = pile.options;
+      var opts = {};//pile.options;
       for (var i in opts) {
         if (l = document.getElementById(i)) {
           var key = (opts[i] === true || opts[i] === false) ? 'checked' : 'value';

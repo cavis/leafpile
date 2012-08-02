@@ -1,4 +1,14 @@
 /* ==========================================================
+* leafpile.js v0.1.1
+* A marker clustering layer for Leaflet maps
+* http://github.com/cavis/leafpile
+* ==========================================================
+* Copyright (c) 2012 Ryan Cavis
+* Licensed under http://en.wikipedia.org/wiki/MIT_License
+* ========================================================== */
+(function (window, undefined) {
+
+/* ==========================================================
  * L.LeafpileGroup
  *
  * A layer used to cluster markers together into geographical
@@ -282,3 +292,181 @@ L.LeafpileGroup = L.LayerGroup.extend({
     }
 
 });
+
+
+/* ==========================================================
+ * L.LeafpileIcon
+ *
+ * Icon for use with a Leafpile
+ * ========================================================== */
+L.LeafpileIcon = L.DivIcon.extend({
+
+    // special constructor to include group count, index (in
+    // the sizes array), and size def object
+    initialize: function (count, index, def) {
+        this.lpCount = count;
+        this.lpIndex = index;
+        this.lpDef = def;
+
+        L.Util.setOptions(this, {
+            className:   'leafpile-icon leafpile-size-' + index,
+            html:        '<b>' + count + '</b>',
+            iconSize:    def.size,
+            iconAnchor:  def.anchor,
+            popupAnchor: def.popup
+        });
+    },
+
+    // set special inline styles
+    _setIconStyles: function (div, name) {
+        L.Icon.prototype._setIconStyles.call(this, div, 'icon');
+        div.style.cursor = 'pointer';
+        div.style.background = 'url(data:image/png;base64,' + this.lpDef.image + ') no-repeat 0 0';
+        div.style['text-align'] = 'center';
+        div.style['font-size'] = '13px';
+        div.style.color = '#fff';
+        div.style['line-height'] = this.options.iconSize.y + 'px';
+    }
+
+});
+
+L.leafpileIcon = function (options) {
+    return new L.LeafpileIcon();
+};
+
+
+/* ==========================================================
+ * L.Leafpile
+ *
+ * A marker representing a grouping of other markers
+ * ========================================================== */
+L.Leafpile = L.Marker.extend({
+
+    /* ========================================
+     * Configuration Options
+     * ======================================== */
+
+    options: {
+        clickable: true,
+        icon: new L.Icon.Default() // will change right away
+    },
+
+    /* ========================================
+     * Public Methods
+     * ======================================== */
+
+    // constructor
+    initialize: function (markers, group, options) {
+        L.Util.setOptions(this, options);
+        this._group = group;
+        this._markers = {};
+        this._cacheLayerPt = new L.Point(0, 0);
+        this.addMarker(markers);
+    },
+
+    // get the number of grouped markers
+    getCount: function () {
+        var size = 0;
+        for (var i in this._markers) {
+            if (this._markers.hasOwnProperty(i)) {
+                size++;
+            }
+        }
+        return size;
+    },
+
+    // add a marker to the pile
+    addMarker: function (markers) {
+        if (!(markers instanceof Array)) {
+            return this.addMarker([markers]);
+        }
+
+        var c = this.getCount(),
+            x = this._cacheLayerPt.x * c,
+            y = this._cacheLayerPt.y * c;
+
+        // add weighted
+        for (var i = 0; i < markers.length; i++) {
+            var id = L.Util.stamp(markers[i]);
+            if (!this._markers[id]) {
+                this._markers[id] = markers[i];
+                var pt = this._group._markerToPoint(markers[i]);
+                x += pt.x;
+                y += pt.y;
+            }
+        }
+
+        // average point location
+        c = this.getCount();
+        this._cacheLayerPt = new L.Point(x / c, y / c);
+        this._latlng = this._group._map.layerPointToLatLng(this._cacheLayerPt);
+        this._updateLeafpileIcon();
+
+        return this;
+    },
+
+    // return an array of all markers in this group
+    getMarkers: function () {
+        var all = [];
+        for (var i in this._markers) {
+            if (this._markers.hasOwnProperty(i)) {
+                all.push(this._markers[i]);
+            }
+        }
+        return all;
+    },
+
+    // add listeners
+    onAdd: function (map) {
+        L.Marker.prototype.onAdd.call(this, map);
+        this.on('click', this._onClick, this);
+    },
+
+    // remove listeners
+    onRemove: function (map) {
+        L.Marker.prototype.onRemove.call(this, map);
+        this.off('click', this._onClick, this);
+    },
+
+    /* ========================================
+     * Private Methods
+     * ======================================== */
+
+    // pull correct icon style from group
+    _updateLeafpileIcon: function () {
+        var sizes = this._group.options.styleSizes,
+            defs  = this._group.options.styleDefs,
+            count = this.getCount(),
+            idx   = 0;
+
+        // pick the biggest icon possible
+        for (idx; idx < sizes.length; ++idx) {
+            if (count <= sizes[idx]) {
+                break; // used this index
+            }
+        }
+        if (idx > sizes.length - 1) {
+            idx = sizes.length - 1;
+        }
+        this.setIcon(new L.LeafpileIcon(count, idx, defs[idx]));
+    },
+
+    // zoom to bounds on click
+    _onClick: function (e) {
+        var marks = this.getMarkers(),
+            latlngs = [];
+        for (var i = 0; i < marks.length; i++) {
+            latlngs.push(marks[i].getLatLng());
+        }
+        var bnds = new L.LatLngBounds(latlngs);
+        var zoom = Math.min(this._map.getBoundsZoom(bnds),
+            this._map.getZoom() + this._group.options.maxZoomChange);
+        this._map.setView(bnds.getCenter(), zoom);
+    }
+
+});
+
+
+
+
+}(this));

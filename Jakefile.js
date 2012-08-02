@@ -11,7 +11,7 @@ var BOILERPLATE =
     '* Licensed under http://en.wikipedia.org/wiki/MIT_License\n' +
     '* ========================================================== */\n';
 
-desc('Check Leaflet.markercluster source for errors with JSHint');
+desc('Check Leafpile source for errors with JSHint');
 task('lint', function () {
 
     var files = build.getFiles();
@@ -28,7 +28,7 @@ task('lint', function () {
     }
 });
 
-desc('Combine and compress Leaflet.markercluster source files');
+desc('Combine and compress Leafpile source files');
 task('build', ['lint'], function (compsBase32, buildName) {
 
     var files = build.getFiles(compsBase32);
@@ -38,7 +38,7 @@ task('build', ['lint'], function (compsBase32, buildName) {
     var content = build.combineFiles(files),
         newSrc = BOILERPLATE + content,
 
-        pathPart = 'dist/leaflet.markercluster' + (buildName ? '-' + buildName : ''),
+        pathPart = 'dist/leafpile' + (buildName ? '-' + buildName : ''),
         srcPath = pathPart + '-src.js',
 
         oldSrc = build.load(srcPath),
