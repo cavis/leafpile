@@ -322,6 +322,7 @@ L.LeafpileGroup = L.LayerGroup.extend({
                 delete this._layers[lid]._cacheLayerPt;
             }
         }
+        this._map.closePopup();
     },
 
     // reset groupings on zoom end

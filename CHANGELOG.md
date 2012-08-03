@@ -26,3 +26,4 @@ Leafpile Versions!
 * Port the whole thing to a leaflet-style build system
 * Fix some animation bugs with the new leaflet 0.4.1 stable
 * Hopefully made options/extensions simpler
+* Fix issue with firefox styles not getting set

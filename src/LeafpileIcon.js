@@ -26,10 +26,10 @@ L.LeafpileIcon = L.DivIcon.extend({
         L.Icon.prototype._setIconStyles.call(this, div, 'icon');
         div.style.cursor = 'pointer';
         div.style.background = 'url(data:image/png;base64,' + this.lpDef.image + ') no-repeat 0 0';
-        div.style['text-align'] = 'center';
-        div.style['font-size'] = '13px';
+        div.style.textAlign = 'center';
+        div.style.fontSize = '13px';
         div.style.color = '#fff';
-        div.style['line-height'] = this.options.iconSize.y + 'px';
+        div.style.lineHeight = this.options.iconSize.y + 'px';
     }
 
 });
