@@ -1,5 +1,5 @@
 /* ==========================================================
-* leafpile.js v0.1.1
+* leafpile.js v0.1.2
 * A marker clustering layer for Leaflet maps
 * http://github.com/cavis/leafpile
 * ==========================================================

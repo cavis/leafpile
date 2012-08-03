@@ -18,3 +18,11 @@ Leafpile Versions!
 * Add option for single-marker leafpiles to either display the new circular icons, or the boring-ol' default marker icons.
 * Misc bug fixes related to add/removing markers from things.
 * The usual leaflet `addLayer()` and `removeLayer()` functions now alias to `addMarker()` and `removeMarker()`.
+
+
+0.1.2
+------------
+
+* Port the whole thing to a leaflet-style build system
+* Fix some animation bugs with the new leaflet 0.4.1 stable
+* Hopefully made options/extensions simpler

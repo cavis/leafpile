@@ -1,9 +1,10 @@
 var build = require('./build/build.js'),
-    lint = require('./build/hint.js');
+    lint = require('./build/hint.js'),
+    vers = require('./build/version.js');
 
 var BOILERPLATE =
     '/* ==========================================================\n' +
-    '* leafpile.js v0.1.1\n' +
+    '* leafpile.js v'+VERSION+'\n' +
     '* A marker clustering layer for Leaflet maps\n' +
     '* http://github.com/cavis/leafpile\n' +
     '* ==========================================================\n' +
