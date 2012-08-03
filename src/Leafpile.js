@@ -53,6 +53,7 @@ L.Leafpile = L.Marker.extend({
             var id = L.Util.stamp(markers[i]);
             if (!this._markers[id]) {
                 this._markers[id] = markers[i];
+                this._markers[id]._leafpile = this;
                 var pt = this._group._markerToPoint(markers[i]);
                 x += pt.x;
                 y += pt.y;
@@ -68,6 +69,27 @@ L.Leafpile = L.Marker.extend({
         return this;
     },
 
+    // remove a marker
+    removeMarker: function (marker) {
+        var id = L.Util.stamp(marker);
+        if (this._markers[id]) {
+            var pt = this._group._markerToPoint(this._markers[id]),
+                c = this.getCount(),
+                x = this._cacheLayerPt.x * c - pt.x,
+                y = this._cacheLayerPt.y * c - pt.y;
+            delete this._markers[id]._leafpile;
+            delete this._markers[id];
+
+            // update position
+            c = this.getCount();
+            this._cacheLayerPt = new L.Point(x / c, y / c);
+            this._latlng = this._group._map.layerPointToLatLng(this._cacheLayerPt);
+            this._updateLeafpileIcon();
+        }
+
+        return this;
+    },
+
     // return an array of all markers in this group
     getMarkers: function () {
         var all = [];
@@ -79,16 +101,14 @@ L.Leafpile = L.Marker.extend({
         return all;
     },
 
-    // add listeners
-    onAdd: function (map) {
-        L.Marker.prototype.onAdd.call(this, map);
-        this.on('click', this._onClick, this);
-    },
-
-    // remove listeners
+    // remove references to self
     onRemove: function (map) {
+        for (var i in this._markers) {
+            if (this._markers.hasOwnProperty(i)) {
+                delete this._markers[i]._leafpile;
+            }
+        }
         L.Marker.prototype.onRemove.call(this, map);
-        this.off('click', this._onClick, this);
     },
 
     /* ========================================
@@ -112,19 +132,6 @@ L.Leafpile = L.Marker.extend({
             idx = sizes.length - 1;
         }
         this.setIcon(new L.LeafpileIcon(count, idx, defs[idx]));
-    },
-
-    // zoom to bounds on click
-    _onClick: function (e) {
-        var marks = this.getMarkers(),
-            latlngs = [];
-        for (var i = 0; i < marks.length; i++) {
-            latlngs.push(marks[i].getLatLng());
-        }
-        var bnds = new L.LatLngBounds(latlngs);
-        var zoom = Math.min(this._map.getBoundsZoom(bnds),
-            this._map.getZoom() + this._group.options.maxZoomChange);
-        this._map.setView(bnds.getCenter(), zoom);
     }
 
 });

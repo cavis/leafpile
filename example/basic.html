@@ -40,9 +40,6 @@
       <label>Max Zoom Level:</label>
       <input type="number" id="maxZoomLevel" class="span1" />
       <br/>
-      <label>Auto Enable:</label>
-      <input type="checkbox" id="autoEnable" />
-      <br/>
       <label>Single Piles:</label>
       <input type="checkbox" id="singlePiles" />
       <br/>
@@ -61,7 +58,10 @@
     <!-- javascripts -->
     <script src="../external/leaflet/leaflet-src.js"></script>
     <script src="http://maps.stamen.com/js/tile.stamen.js"></script>
-    <script src="../dist/leafpile-src.js"></script>
+    <!-- <script src="../dist/leafpile-src.js"></script> -->
+    <script src="../src/LeafpileGroup.js"></script>
+    <script src="../src/LeafpileIcon.js"></script>
+    <script src="../src/Leafpile.js"></script>
 
     <!-- sample data -->
     <script src="data-200.js"></script>
@@ -82,23 +82,30 @@
       }
 
       // pile layer
-      var options = {radius: 120};
-      var pile = new L.LeafpileGroup(options, markers);
-      map.addLayer(pile);
-      // pile.on('leafpileclick',function(e) {
-      //   console.log("CLICKED!", e);
-      // });
-
-      // example data
-
+      var options = {radius: 120, maxZoomLevel: 13};
+      var group = new L.LeafpileGroup(options, markers);
+      map.addLayer(group);
+      group.on('click',function(e) {
+        if (e.leafpile) {
+          if (randomInt(0, 1) == 1) {
+            e.leafpile.bindPopup('you clicked on '+e.markers.length+' markers');
+            e.leafpile.openPopup();
+            e.cancelZoom();
+          }
+        }
+        else {
+          e.markers[0].bindPopup("you clicked on me");
+          e.markers[0].openPopup();
+        }
+      });
 
       // generate random integers
-      // function randomInt(min, max) {
-      //   return Math.floor(Math.random() * (max - min + 1)) + min;
-      // }
+      function randomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
 
       // set options inputs
-      var opts = {};//pile.options;
+      var opts = group.options;
       for (var i in opts) {
         if (l = document.getElementById(i)) {
           var key = (opts[i] === true || opts[i] === false) ? 'checked' : 'value';
@@ -108,13 +115,17 @@
 
       // option changes
       document.getElementById('radius').onchange = function() {
-        pile.setRadius(this.value);
+        group.setRadius(this.value);
       }
       document.getElementById('maxZoomChange').onchange = function() {
-        pile.options.maxZoomChange = parseInt(this.value);
+        group.options.maxZoomChange = parseInt(this.value);
       }
       document.getElementById('maxZoomLevel').onchange = function() {
-        pile.options.maxZoomLevel = parseInt(this.value);
+        group.options.maxZoomLevel = parseInt(this.value);
+      }
+      document.getElementById('singlePiles').onchange = function() {
+        group.options.singlePiles = this.checked;
+        group._redraw();
       }
 
       // button handlers
@@ -124,23 +135,28 @@
         var lat = Math.random() * (ne.lat-sw.lat) + sw.lat;
         var lng = -(Math.random() * (sw.lng-ne.lng) - sw.lng);
         var mark = new L.Marker(new L.LatLng(lat, lng));
-        pile.addMarker(mark);
+        group.addLayer(mark);
       }
       document.getElementById('rmvrand').onclick = function() {
-        var keys = Object.keys(pile._markers);
-        var idx = randomInt(0, keys.length - 1);
-        pile.removeMarker(pile._markers[keys[idx]]);
+        var bnds = map.getBounds();
+        for (var i in group._layers) {
+          if (bnds.contains(group._layers[i]._latlng)) {
+            group.removeLayer(group._layers[i]);
+            break;
+          }
+        }
       }
       document.getElementById('enable').onclick = function() {
-        pile.enable();
+        var rad = document.getElementById('radius').value
+        group.setRadius(rad);
       }
       document.getElementById('disable').onclick = function() {
-        pile.disable();
+        group.setRadius(0);
       }
       document.getElementById('popup').onclick = function() {
-        var keys = Object.keys(pile._markers);
+        var keys = Object.keys(group._layers);
         var idx = randomInt(0, keys.length - 1);
-        var mark = pile._markers[keys[idx]];
+        var mark = group._layers[keys[idx]];
         mark.bindPopup("hello world from marker "+(idx+1));
         mark.openPopup();
       }

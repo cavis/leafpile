@@ -16,6 +16,8 @@
  * ========================================================== */
 L.LeafpileGroup = L.LayerGroup.extend({
 
+    includes: L.Mixin.Events,
+
     /* ========================================
      * Configuration Options
      * ======================================== */
@@ -80,6 +82,23 @@ L.LeafpileGroup = L.LayerGroup.extend({
         if (this._map) {
             if (layer instanceof L.Marker) {
                 this._addMarkerSomewhere(layer);
+                layer.on('click', this._onMarkerClick, this);
+
+                // hijack openpopup method
+                layer.openPopup = function () {
+                    if (this._popup && this._leafpile) {
+                        var options = L.Util.extend({}, this._popup.options),
+                            content = this._popup._content;
+                        delete options.offset; //let leafpile decide
+                        this._leafpile.bindPopup(content, options);
+                        this._leafpile.openPopup();
+                    }
+                    else {
+                        L.Marker.prototype.openPopup.call(this);
+                    }
+
+                    return this;
+                };
             }
             else {
                 this._map.addLayer(layer);
@@ -96,6 +115,9 @@ L.LeafpileGroup = L.LayerGroup.extend({
 
         if (this._map) {
             this._map.removeLayer(layer);
+            if (layer instanceof L.Marker) {
+                layer.off('click', this._onMarkerClick, this);
+            }
 
             if (this._loneMarkers[id]) {
                 delete this._loneMarkers[id];
@@ -131,9 +153,20 @@ L.LeafpileGroup = L.LayerGroup.extend({
         this._leafPiles = {};
         if (keep !== true) {
             this._layers = {};
+            for (var rmv in this._layers) {
+                if (this._layers.hasOwnProperty(rmv) && this._layers[rmv] instanceof L.Marker) {
+                    this._layers[rmv].off('click', this._onMarkerClick, this);
+                }
+            }
         }
 
         return this;
+    },
+
+    // change the grouping radius on-the-fly
+    setRadius: function (radius) {
+        this.options.radius = radius;
+        this._redraw();
     },
 
     // call back from being added to a map
@@ -195,6 +228,9 @@ L.LeafpileGroup = L.LayerGroup.extend({
 
     // check if markers are < radius apart
     _shouldGroup: function (mark1, mark2) {
+        if (this._map.getZoom() >= this.options.maxZoomLevel) {
+            return false;
+        }
         var pt1 = this._markerToPoint(mark1),
             pt2 = this._markerToPoint(mark2);
         if (pt1.distanceTo(pt2) < this.options.radius) {
@@ -218,6 +254,7 @@ L.LeafpileGroup = L.LayerGroup.extend({
             pid = L.Util.stamp(pile);
         this._leafPiles[pid] = pile;
         this._map.addLayer(pile);
+        pile.on('click', this._onMarkerClick, this);
 
         // remove any single markers from map
         for (var i = 0; i < marks.length; i++) {
@@ -235,6 +272,7 @@ L.LeafpileGroup = L.LayerGroup.extend({
                 if (this._shouldGroup(pile, this._leafPiles[pid])) {
                     var pmarks = this._leafPiles[pid].getMarkers();
                     pile.addMarker(pmarks);
+                    this._leafPiles[pid].off('click', this._onMarkerClick, this);
                     this._map.removeLayer(this._leafPiles[pid]);
                     delete this._leafPiles[pid];
                 }
@@ -253,21 +291,36 @@ L.LeafpileGroup = L.LayerGroup.extend({
 
     // remove a layer from a leafpile
     _removeFromLeafpile: function (layer, pile) {
-        if (pile.hasLayer(layer)) {
-            pile.removeLayer(layer);
+        pile.removeMarker(layer);
 
-            // nuke pile if it's too small
-            if (pile.getCount() < 1) {
-                this._map.removeLayer(pile);
-                delete this._leafPiles[L.Util.stamp(pile)];
-            }
-            else if (pile.getCount() === 1 && !this.options.singlePiles) {
-                var single = pile.getMarkers()[0],
-                    sid = L.Util.stamp(single);
-                this._map.removeLayer(pile);
-                delete this._leafPiles[L.Util.stamp(pile)];
-                this._map.addLayer(single);
-                this._loneMarkers[sid] = single;
+        // nuke pile if it's too small
+        if (pile.getCount() < 1) {
+            pile.off('click', this._onMarkerClick, this);
+            this._map.removeLayer(pile);
+            delete this._leafPiles[L.Util.stamp(pile)];
+        }
+        else if (pile.getCount() === 1 && !this.options.singlePiles) {
+            var single = pile.getMarkers()[0],
+                sid = L.Util.stamp(single);
+            pile.off('click', this._onMarkerClick, this);
+            this._map.removeLayer(pile);
+            delete this._leafPiles[L.Util.stamp(pile)];
+            this._map.addLayer(single);
+            this._loneMarkers[sid] = single;
+        }
+    },
+
+    // redraw the map/groupings
+    _redraw: function () {
+        this.clearLayers(true);
+        for (var lid in this._layers) {
+            if (this._layers.hasOwnProperty(lid)) {
+                if (this._layers[lid] instanceof L.Marker) {
+                    this._addMarkerSomewhere(this._layers[lid]);
+                }
+                else {
+                    this._map.addLayer(this._layers[lid]);
+                }
             }
         }
     },
@@ -283,11 +336,33 @@ L.LeafpileGroup = L.LayerGroup.extend({
 
     // reset groupings on zoom end
     _onZoomEnd: function () {
-        this.clearLayers(true);
-        for (var lid in this._layers) {
-            if (this._layers.hasOwnProperty(lid)) {
-                this.addLayer(this._layers[lid]);
+        this._redraw();
+    },
+
+    // marker (single or leafpile) is clicked
+    _onMarkerClick: function (e) {
+        var isLeafpile = e.target instanceof L.Leafpile,
+            marks = isLeafpile ? e.target.getMarkers() : [e.target],
+            latlngs = [];
+
+        // fire event from group
+        this.fire('click', {
+            group:      this,
+            leafpile:   isLeafpile ? e.target : false,
+            markers:    marks,
+            zooming:    (marks.length > 1),
+            cancelZoom: function () { e.cancel = true; }
+        });
+
+        // zoom in when multiple are clicked
+        if (marks.length > 1 && e.cancel !== true) {
+            for (var i = 0; i < marks.length; i++) {
+                latlngs.push(marks[i].getLatLng());
             }
+            var bnds = new L.LatLngBounds(latlngs);
+            var zoom = Math.min(this._map.getBoundsZoom(bnds),
+                this._map.getZoom() + this.options.maxZoomChange);
+            this._map.setView(bnds.getCenter(), zoom);
         }
     }
 
@@ -390,6 +465,7 @@ L.Leafpile = L.Marker.extend({
             var id = L.Util.stamp(markers[i]);
             if (!this._markers[id]) {
                 this._markers[id] = markers[i];
+                this._markers[id]._leafpile = this;
                 var pt = this._group._markerToPoint(markers[i]);
                 x += pt.x;
                 y += pt.y;
@@ -405,6 +481,27 @@ L.Leafpile = L.Marker.extend({
         return this;
     },
 
+    // remove a marker
+    removeMarker: function (marker) {
+        var id = L.Util.stamp(marker);
+        if (this._markers[id]) {
+            var pt = this._group._markerToPoint(this._markers[id]),
+                c = this.getCount(),
+                x = this._cacheLayerPt.x * c - pt.x,
+                y = this._cacheLayerPt.y * c - pt.y;
+            delete this._markers[id]._leafpile;
+            delete this._markers[id];
+
+            // update position
+            c = this.getCount();
+            this._cacheLayerPt = new L.Point(x / c, y / c);
+            this._latlng = this._group._map.layerPointToLatLng(this._cacheLayerPt);
+            this._updateLeafpileIcon();
+        }
+
+        return this;
+    },
+
     // return an array of all markers in this group
     getMarkers: function () {
         var all = [];
@@ -416,16 +513,14 @@ L.Leafpile = L.Marker.extend({
         return all;
     },
 
-    // add listeners
-    onAdd: function (map) {
-        L.Marker.prototype.onAdd.call(this, map);
-        this.on('click', this._onClick, this);
-    },
-
-    // remove listeners
+    // remove references to self
     onRemove: function (map) {
+        for (var i in this._markers) {
+            if (this._markers.hasOwnProperty(i)) {
+                delete this._markers[i]._leafpile;
+            }
+        }
         L.Marker.prototype.onRemove.call(this, map);
-        this.off('click', this._onClick, this);
     },
 
     /* ========================================
@@ -449,19 +544,6 @@ L.Leafpile = L.Marker.extend({
             idx = sizes.length - 1;
         }
         this.setIcon(new L.LeafpileIcon(count, idx, defs[idx]));
-    },
-
-    // zoom to bounds on click
-    _onClick: function (e) {
-        var marks = this.getMarkers(),
-            latlngs = [];
-        for (var i = 0; i < marks.length; i++) {
-            latlngs.push(marks[i].getLatLng());
-        }
-        var bnds = new L.LatLngBounds(latlngs);
-        var zoom = Math.min(this._map.getBoundsZoom(bnds),
-            this._map.getZoom() + this._group.options.maxZoomChange);
-        this._map.setView(bnds.getCenter(), zoom);
     }
 
 });
